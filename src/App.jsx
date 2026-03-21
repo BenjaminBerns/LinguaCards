@@ -655,15 +655,7 @@ function DeckDetail({ deck, onUpdateCards, onBack, toast }) {
                 />
             </div>
 
-            {deck.cards.length > 0 && (
-                <>
-                    <div className="text-sm text-muted">Aperçu — cliquer pour retourner</div>
-                    <div className="cards-row">
-                        {deck.cards.slice(0, 6).map(c => <FlashCard key={c.id} card={c} />)}
-                    </div>
-                    <hr className="divider" />
-                </>
-            )}
+
 
             <div className="card">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
