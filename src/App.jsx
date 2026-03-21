@@ -292,6 +292,23 @@ const CSS = `
   .flex-row { display: flex; gap: 8px; align-items: center; }
   .mt-2 { margin-top: 8px; }
 
+  /* ── QCM ── */
+  .qcm-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 36px; max-width: 520px; margin: 0 auto; }
+  .qcm-word { font-family: var(--font-serif); font-size: 34px; font-weight: 700; text-align: center; margin: 14px 0 28px; }
+  .qcm-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .qcm-option {
+    padding: 16px 14px; border-radius: var(--radius); border: 1.5px solid var(--border2);
+    background: var(--bg3); color: var(--text); font-family: var(--font); font-size: 14px;
+    font-weight: 500; cursor: pointer; transition: all .15s; text-align: center; line-height: 1.3;
+  }
+  .qcm-option:hover:not(:disabled) { border-color: var(--red); background: var(--red-bg); }
+  .qcm-option.correct { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .qcm-option.wrong   { background: var(--red-bg2);  border-color: var(--red-light); color: #f8b0bb; }
+  .qcm-option.reveal  { background: var(--green-bg); border-color: var(--green); color: var(--green); opacity: 0.6; }
+  .qcm-option:disabled { cursor: default; }
+  .qcm-streak { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text2); }
+  .qcm-streak-fire { font-size: 18px; }
+
   /* ── Responsive ── */
 
   /* Tablet (≤ 900px) : sidebar réduite à icônes seulement */
@@ -873,6 +890,155 @@ function QuizPage({ decks }) {
     );
 }
 
+// ─── QCM Page ─────────────────────────────────────────────────────────────────
+function QCMPage({ decks }) {
+    const [selId, setSelId] = useState(decks[0]?.id || "");
+    const [started, setStarted] = useState(false);
+    const [questions, setQuestions] = useState([]);
+    const [qIdx, setQIdx] = useState(0);
+    const [chosen, setChosen] = useState(null);   // index choisi
+    const [results, setResults] = useState([]);
+    const [finished, setFinished] = useState(false);
+    const [streak, setStreak] = useState(0);
+    const deck = decks.find(d => d.id === selId);
+
+    // Génère 4 options dont 1 correcte, piochées parmi toutes les cartes du deck
+    const buildOptions = (cards, correct) => {
+        const pool = cards.filter(c => c !== correct);
+        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+        const opts = [...shuffled, correct].sort(() => Math.random() - 0.5);
+        return opts;
+    };
+
+    const startQCM = () => {
+        const cards = deck?.cards || [];
+        if (cards.length < 4) return;
+        const qs = [...cards].sort(() => Math.random() - 0.5).map(c => {
+            const frToTr = Math.random() > 0.5;
+            const opts = buildOptions(cards, c);
+            return {
+                frToTr,
+                question: frToTr ? c.fr : c.tr,
+                correctAnswer: frToTr ? c.tr : c.fr,
+                options: opts.map(o => frToTr ? o.tr : o.fr),
+            };
+        });
+        setQuestions(qs); setQIdx(0); setChosen(null); setResults([]);
+        setFinished(false); setStreak(0); setStarted(true);
+    };
+
+    const pick = (optIdx) => {
+        if (chosen !== null) return;
+        const correct = questions[qIdx].options[optIdx] === questions[qIdx].correctAnswer;
+        setChosen(optIdx);
+        setResults(r => [...r, correct]);
+        setStreak(s => correct ? s + 1 : 0);
+    };
+
+    const next = () => {
+        if (qIdx + 1 >= questions.length) { setFinished(true); return; }
+        setQIdx(i => i + 1); setChosen(null);
+    };
+
+    const q = started && !finished ? questions[qIdx] : null;
+
+    if (!started) return (
+        <div>
+            <div className="page-title">QCM</div>
+            <div className="page-sub">Choisissez la bonne traduction parmi 4 options</div>
+            <div className="card" style={{ maxWidth: 400 }}>
+                <div className="field">
+                    <label>Tableau</label>
+                    <select value={selId} onChange={e => setSelId(e.target.value)}>
+                        {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+                    </select>
+                </div>
+                {deck && deck.cards.length < 4 && (
+                    <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau pour jouer.</div>
+                )}
+                <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>Direction aléatoire FR→TR ou TR→FR.</div>
+                <button className="btn btn-primary" onClick={startQCM} disabled={!deck || deck.cards.length < 4}>
+                    Commencer le QCM
+                </button>
+            </div>
+        </div>
+    );
+
+    if (finished) {
+        const score = results.filter(Boolean).length;
+        const best = results.reduce((acc, r) => { if (r) acc.cur++; else acc.cur = 0; acc.best = Math.max(acc.best, acc.cur); return acc; }, { cur: 0, best: 0 }).best;
+        return (
+            <div>
+                <div className="page-title">Résultats QCM</div>
+                <div className="qcm-card" style={{ textAlign: "center" }}>
+                    <div className="score-big">{score}/{questions.length}</div>
+                    <div className="text-muted mt-2" style={{ marginBottom: 10, fontSize: 14 }}>
+                        {score === questions.length ? "Mükemmel ! Parfait ! 🌟" : score >= questions.length * 0.7 ? "Çok iyi ! Très bien 👍" : "Devam et ! Continue 💪"}
+                    </div>
+                    {best >= 3 && <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 18 }}>🔥 Meilleure série : {best} bonnes réponses d'affilée</div>}
+                    <div className="quiz-progress" style={{ marginBottom: 22 }}>
+                        {results.map((r, i) => <div key={i} className={`quiz-dot ${r ? "done-correct" : "done-wrong"}`} />)}
+                    </div>
+                    <div className="flex-row" style={{ justifyContent: "center" }}>
+                        <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
+                        <button className="btn btn-primary" onClick={startQCM}>Recommencer</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const isAnswered = chosen !== null;
+    const correctIdx = q.options.indexOf(q.correctAnswer);
+
+    const optClass = (i) => {
+        if (!isAnswered) return "";
+        if (i === chosen && i === correctIdx) return "correct";
+        if (i === chosen && i !== correctIdx) return "wrong";
+        if (i === correctIdx) return "reveal";
+        return "";
+    };
+
+    return (
+        <div>
+            <div className="page-title">QCM</div>
+            <div className="qcm-card">
+                {/* Progress + streak */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <div className="quiz-progress" style={{ marginBottom: 0 }}>
+                        {questions.map((_, i) => <div key={i} className={`quiz-dot ${i < qIdx ? (results[i] ? "done-correct" : "done-wrong") : i === qIdx ? "current" : ""}`} />)}
+                    </div>
+                    {streak >= 2 && (
+                        <div className="qcm-streak"><span className="qcm-streak-fire">🔥</span>{streak}</div>
+                    )}
+                </div>
+
+                <div className="quiz-lang-badge">{q.frToTr ? "Français → Turc" : "Turc → Français"}</div>
+                <div className="qcm-word">{q.question}</div>
+
+                <div className="qcm-options">
+                    {q.options.map((opt, i) => (
+                        <button
+                            key={i}
+                            className={`qcm-option ${optClass(i)}`}
+                            onClick={() => pick(i)}
+                            disabled={isAnswered}
+                        >
+                            {opt}
+                        </button>
+                    ))}
+                </div>
+
+                {isAnswered && (
+                    <button className="btn btn-primary w-full" style={{ marginTop: 20 }} onClick={next}>
+                        {qIdx + 1 < questions.length ? "Question suivante →" : "Voir les résultats"}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
     const [decks, setDecks] = useState(() => load());
@@ -902,6 +1068,7 @@ export default function App() {
         { id: "decks", icon: "🗂", label: "Mes tableaux" },
         { id: "training", icon: "🃏", label: "Entraînement" },
         { id: "quiz", icon: "🎯", label: "Quiz" },
+        { id: "qcm", icon: "🔤", label: "QCM" },
     ];
 
     const renderPage = () => {
@@ -914,6 +1081,7 @@ export default function App() {
             case "decks": return <MyDecksPage decks={decks} onCreateDeck={createDeck} onEditDeck={editDeck} onDeleteDeck={deleteDeck} onOpenDeck={setOpenDeck} onMergeCards={mergeCards} toast={showToast} />;
             case "training": return <TrainingPage decks={decks} />;
             case "quiz": return <QuizPage decks={decks} />;
+            case "qcm": return <QCMPage decks={decks} />;
             default: return null;
         }
     };
