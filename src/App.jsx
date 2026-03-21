@@ -223,6 +223,10 @@ const CSS = `
   .words-table td { padding: 10px 12px; font-size: 13.5px; border-bottom: 1px solid var(--border); }
   .words-table tr:last-child td { border-bottom: none; }
   .words-table tr:hover td { background: var(--surface); }
+  .word-row { cursor: default; }
+  .word-row:hover td { background: var(--surface); }
+  .editing-row td { background: var(--bg3) !important; padding: 6px 8px; }
+  .editing-row input { padding: 6px 10px; font-size: 13px; }
   .add-row { display: flex; gap: 8px; margin-top: 12px; }
   .add-row input { flex: 1; }
 
@@ -573,11 +577,50 @@ function MyDecksPage({ decks, onCreateDeck, onEditDeck, onDeleteDeck, onOpenDeck
     );
 }
 
+// ─── Editable row ────────────────────────────────────────────────────────────
+function EditableRow({ card, onSave, onRemove }) {
+    const [editing, setEditing] = useState(false);
+    const [eFr, setEFr] = useState(card.fr);
+    const [eTr, setETr] = useState(card.tr);
+    const trRef = useRef();
+
+    const startEdit = () => { setEFr(card.fr); setETr(card.tr); setEditing(true); };
+    const cancel = () => setEditing(false);
+    const save = () => {
+        if (!eFr.trim() || !eTr.trim()) return;
+        onSave({ ...card, fr: eFr.trim(), tr: eTr.trim() });
+        setEditing(false);
+    };
+
+    if (editing) return (
+        <tr className="editing-row">
+            <td><input value={eFr} onChange={e => setEFr(e.target.value)} onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} autoFocus /></td>
+            <td><input ref={trRef} value={eTr} onChange={e => setETr(e.target.value)} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }} /></td>
+            <td style={{ whiteSpace: "nowrap" }}>
+                <button className="btn btn-primary btn-sm" onClick={save}>✓</button>
+                <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={cancel}>✕</button>
+            </td>
+        </tr>
+    );
+
+    return (
+        <tr className="word-row" onDoubleClick={startEdit} title="Double-cliquer pour modifier">
+            <td>{card.fr}</td>
+            <td>{card.tr}</td>
+            <td style={{ whiteSpace: "nowrap" }}>
+                <button className="btn btn-ghost btn-sm" onClick={startEdit} title="Modifier">✎</button>
+                <button className="btn btn-danger btn-sm" style={{ marginLeft: 4 }} onClick={() => onRemove(card.id)}>✕</button>
+            </td>
+        </tr>
+    );
+}
+
 // ─── Deck Detail ──────────────────────────────────────────────────────────────
 function DeckDetail({ deck, onUpdateCards, onBack, toast }) {
     const [fr, setFr] = useState("");
     const [tr, setTr] = useState("");
     const [err, setErr] = useState("");
+    const [search, setSearch] = useState("");
     const trRef = useRef();
 
     const add = () => {
@@ -586,6 +629,13 @@ function DeckDetail({ deck, onUpdateCards, onBack, toast }) {
         setFr(""); setTr(""); setErr("");
     };
     const remove = (id) => onUpdateCards(deck.cards.filter(c => c.id !== id));
+    const saveCard = (updated) => onUpdateCards(deck.cards.map(c => c.id === updated.id ? updated : c));
+
+    const filtered = search.trim()
+        ? deck.cards.filter(c =>
+            c.fr.toLowerCase().includes(search.toLowerCase()) ||
+            c.tr.toLowerCase().includes(search.toLowerCase()))
+        : deck.cards;
 
     return (
         <div>
@@ -616,23 +666,42 @@ function DeckDetail({ deck, onUpdateCards, onBack, toast }) {
             )}
 
             <div className="card">
-                <div style={{ fontWeight: 600, marginBottom: 16, fontSize: 13.5 }}>Liste des mots</div>
-                {deck.cards.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>
+                        Liste des mots
+                        {search && filtered.length !== deck.cards.length && (
+                            <span style={{ color: "var(--text3)", fontWeight: 400, fontSize: 12, marginLeft: 8 }}>{filtered.length} résultat{filtered.length !== 1 ? "s" : ""}</span>
+                        )}
+                    </div>
+                    {deck.cards.length > 4 && (
+                        <input
+                            value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="🔍 Rechercher un mot..."
+                            style={{ width: "auto", flex: 1, maxWidth: 240, padding: "7px 12px", fontSize: 13 }}
+                        />
+                    )}
+                </div>
+
+                {filtered.length > 0 && (
                     <table className="words-table">
                         <thead>
-                            <tr><th>🇫🇷 Français</th><th>🇹🇷 Turc</th><th></th></tr>
+                            <tr>
+                                <th>🇫🇷 Français</th>
+                                <th>🇹🇷 Turc</th>
+                                <th style={{ fontSize: 10, color: "var(--text3)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>double-clic pour éditer</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {deck.cards.map(c => (
-                                <tr key={c.id}>
-                                    <td>{c.fr}</td>
-                                    <td>{c.tr}</td>
-                                    <td><button className="btn btn-danger btn-sm" onClick={() => remove(c.id)}>✕</button></td>
-                                </tr>
+                            {filtered.map(c => (
+                                <EditableRow key={c.id} card={c} onSave={saveCard} onRemove={remove} />
                             ))}
                         </tbody>
                     </table>
                 )}
+                {search && filtered.length === 0 && (
+                    <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text3)", fontSize: 13 }}>Aucun mot ne correspond à "{search}"</div>
+                )}
+
                 <div className="add-row" style={{ marginTop: deck.cards.length > 0 ? 14 : 0 }}>
                     <input value={fr} onChange={e => setFr(e.target.value)} placeholder="Mot en français"
                         onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} />
