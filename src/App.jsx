@@ -83,7 +83,8 @@ const CSS = `
     border-right: 1px solid var(--border); display: flex; flex-direction: column;
     padding: 0 0 20px; position: fixed; height: 100vh; z-index: 10;
   }
-  .main { margin-left: 228px; flex: 1; padding: 36px; max-width: 1080px; }
+  .main { margin-left: 228px; flex: 1; padding: 36px 40px; width: calc(100% - 228px); }
+  .main-inner { max-width: 960px; }
 
   /* ── Sidebar header ── */
   .sidebar-header {
@@ -322,7 +323,7 @@ const CSS = `
     .nav-item { justify-content: center; padding: 10px 0; gap: 0; }
     .nav-item span.nav-label { display: none; }
     .nav-icon { width: auto; font-size: 18px; }
-    .main { margin-left: 64px; padding: 24px 20px; }
+    .main { margin-left: 64px; padding: 24px 20px; width: calc(100% - 64px); }
     .deck-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
     .flashcard-scene { width: 260px; height: 160px; }
     .card-word { font-size: 19px; }
@@ -333,11 +334,7 @@ const CSS = `
   /* Mobile (≤ 600px) : sidebar cachée, bottom nav */
   @media (max-width: 600px) {
     .sidebar { display: none; }
-    .main {
-      margin-left: 0;
-      padding: 20px 16px 80px;
-      max-width: 100vw;
-    }
+    .main { margin-left: 0; padding: 20px 16px 80px; width: 100%; }
     .page-title { font-size: 22px; }
     .section-header { flex-direction: column; gap: 10px; }
     .section-header > div:last-child { width: 100%; display: flex; gap: 8px; }
@@ -893,29 +890,31 @@ function QuizPage({ decks }) {
 // ─── QCM Page ─────────────────────────────────────────────────────────────────
 function QCMPage({ decks }) {
     const [selId, setSelId] = useState(decks[0]?.id || "");
+    const [showModal, setShowModal] = useState(false);
+    const [wordCount, setWordCount] = useState(10);
     const [started, setStarted] = useState(false);
     const [questions, setQuestions] = useState([]);
     const [qIdx, setQIdx] = useState(0);
-    const [chosen, setChosen] = useState(null);   // index choisi
+    const [chosen, setChosen] = useState(null);
     const [results, setResults] = useState([]);
     const [finished, setFinished] = useState(false);
     const [streak, setStreak] = useState(0);
     const deck = decks.find(d => d.id === selId);
+    const maxWords = deck?.cards.length || 0;
 
-    // Génère 4 options dont 1 correcte, piochées parmi toutes les cartes du deck
     const buildOptions = (cards, correct) => {
         const pool = cards.filter(c => c !== correct);
         const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
-        const opts = [...shuffled, correct].sort(() => Math.random() - 0.5);
-        return opts;
+        return [...shuffled, correct].sort(() => Math.random() - 0.5);
     };
 
-    const startQCM = () => {
-        const cards = deck?.cards || [];
-        if (cards.length < 4) return;
-        const qs = [...cards].sort(() => Math.random() - 0.5).map(c => {
+    const startQCM = (count) => {
+        const allCards = deck?.cards || [];
+        if (allCards.length < 4) return;
+        const picked = [...allCards].sort(() => Math.random() - 0.5).slice(0, count);
+        const qs = picked.map(c => {
             const frToTr = Math.random() > 0.5;
-            const opts = buildOptions(cards, c);
+            const opts = buildOptions(allCards, c);
             return {
                 frToTr,
                 question: frToTr ? c.fr : c.tr,
@@ -924,7 +923,7 @@ function QCMPage({ decks }) {
             };
         });
         setQuestions(qs); setQIdx(0); setChosen(null); setResults([]);
-        setFinished(false); setStreak(0); setStarted(true);
+        setFinished(false); setStreak(0); setStarted(true); setShowModal(false);
     };
 
     const pick = (optIdx) => {
@@ -942,6 +941,43 @@ function QCMPage({ decks }) {
 
     const q = started && !finished ? questions[qIdx] : null;
 
+    // ── Modal de configuration ──
+    const ConfigModal = () => (
+        <Modal title="Configurer le QCM" onClose={() => setShowModal(false)}>
+            <div className="field">
+                <label>Tableau</label>
+                <select value={selId} onChange={e => { setSelId(e.target.value); setWordCount(Math.min(wordCount, decks.find(d => d.id === e.target.value)?.cards.length || 10)); }}>
+                    {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+                </select>
+            </div>
+            <div className="field">
+                <label>Nombre de mots ({wordCount} / {maxWords})</label>
+                <input
+                    type="range" min={4} max={maxWords} value={Math.min(wordCount, maxWords)}
+                    onChange={e => setWordCount(Number(e.target.value))}
+                    style={{ padding: 0, background: "none", border: "none", accentColor: "var(--red)", cursor: "pointer" }}
+                />
+                {/* Presets rapides */}
+                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+                    {[10, 20, 30, 50].filter(n => n <= maxWords).map(n => (
+                        <button key={n} className={`btn btn-sm ${wordCount === n ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(n)}>{n}</button>
+                    ))}
+                    <button className={`btn btn-sm ${wordCount === maxWords ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(maxWords)}>Tout ({maxWords})</button>
+                </div>
+            </div>
+            {deck && deck.cards.length < 4 && (
+                <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau.</div>
+            )}
+            <div className="text-sm text-muted mt-2" style={{ marginBottom: 4 }}>Direction aléatoire FR→TR ou TR→FR.</div>
+            <div className="modal-actions">
+                <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Annuler</button>
+                <button className="btn btn-primary" onClick={() => startQCM(Math.min(wordCount, maxWords))} disabled={!deck || maxWords < 4}>
+                    Lancer — {Math.min(wordCount, maxWords)} mots
+                </button>
+            </div>
+        </Modal>
+    );
+
     if (!started) return (
         <div>
             <div className="page-title">QCM</div>
@@ -953,14 +989,15 @@ function QCMPage({ decks }) {
                         {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
                     </select>
                 </div>
-                {deck && deck.cards.length < 4 && (
+                {deck && maxWords < 4 && (
                     <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau pour jouer.</div>
                 )}
                 <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>Direction aléatoire FR→TR ou TR→FR.</div>
-                <button className="btn btn-primary" onClick={startQCM} disabled={!deck || deck.cards.length < 4}>
-                    Commencer le QCM
+                <button className="btn btn-primary" onClick={() => { setWordCount(Math.min(20, maxWords)); setShowModal(true); }} disabled={!deck || maxWords < 4}>
+                    Configurer &amp; Lancer
                 </button>
             </div>
+            {showModal && <ConfigModal />}
         </div>
     );
 
@@ -981,7 +1018,7 @@ function QCMPage({ decks }) {
                     </div>
                     <div className="flex-row" style={{ justifyContent: "center" }}>
                         <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
-                        <button className="btn btn-primary" onClick={startQCM}>Recommencer</button>
+                        <button className="btn btn-primary" onClick={() => startQCM(questions.length)}>Recommencer</button>
                     </div>
                 </div>
             </div>
@@ -1107,7 +1144,7 @@ export default function App() {
                     </nav>
 
                 </aside>
-                <main className="main">{renderPage()}</main>
+                <main className="main"><div className="main-inner">{renderPage()}</div></main>
             </div>
             {/* Mobile bottom nav */}
             <nav className="mobile-nav">
