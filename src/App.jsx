@@ -84,7 +84,7 @@ const CSS = `
     padding: 0 0 20px; position: fixed; height: 100vh; z-index: 10;
   }
   .main { margin-left: 228px; flex: 1; padding: 36px 40px; width: calc(100% - 228px); }
-  .main-inner { max-width: 960px; }
+  .main-inner { width: 100%; }
 
   /* ── Sidebar header ── */
   .sidebar-header {
