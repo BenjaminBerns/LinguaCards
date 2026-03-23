@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 const DB_KEY = "lingo_decks_v2";
@@ -8,39 +8,39 @@ const save = (decks) => localStorage.setItem(DB_KEY, JSON.stringify(decks));
 // ─── Utils ────────────────────────────────────────────────────────────────────
 const uid = () => Math.random().toString(36).slice(2, 10);
 const normalize = (s) =>
-    s.trim().toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .replace(/['']/g, "'");
+  s.trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/['']/g, "'");
 
 // ─── CSV helpers ──────────────────────────────────────────────────────────────
 const exportCSV = (deck) => {
-    const rows = [["Français", "Turc"], ...deck.cards.map(c => [c.fr, c.tr])];
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${deck.name.replace(/\s+/g, "_")}.csv`;
-    a.click();
+  const rows = [["Français", "Turc"], ...deck.cards.map(c => [c.fr, c.tr])];
+  const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `${deck.name.replace(/\s+/g, "_")}.csv`;
+  a.click();
 };
 
 const parseCSV = (text) => {
-    const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
-    const parseRow = (line) => {
-        const cols = []; let cur = ""; let inQ = false;
-        for (const ch of line) {
-            if (ch === '"') { inQ = !inQ; }
-            else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
-            else { cur += ch; }
-        }
-        cols.push(cur.trim());
-        return cols.map(c => c.replace(/^"|"$/g, "").replace(/""/g, '"'));
-    };
-    const rows = lines.map(parseRow);
-    const first = rows[0]?.[0]?.toLowerCase() || "";
-    const start = (first === "français" || first === "francais" || first === "french") ? 1 : 0;
-    const cards = rows.slice(start).filter(r => r[0] && r[1]).map(r => ({ id: uid(), fr: r[0], tr: r[1] }));
-    if (cards.length === 0) throw new Error("Aucun mot trouvé dans le CSV");
-    return cards;
+  const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
+  const parseRow = (line) => {
+    const cols = []; let cur = ""; let inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === "," && !inQ) { cols.push(cur.trim()); cur = ""; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    return cols.map(c => c.replace(/^"|"$/g, "").replace(/""/g, '"'));
+  };
+  const rows = lines.map(parseRow);
+  const first = rows[0]?.[0]?.toLowerCase() || "";
+  const start = (first === "français" || first === "francais" || first === "french") ? 1 : 0;
+  const cards = rows.slice(start).filter(r => r[0] && r[1]).map(r => ({ id: uid(), fr: r[0], tr: r[1] }));
+  if (cards.length === 0) throw new Error("Aucun mot trouvé dans le CSV");
+  return cards;
 };
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -238,6 +238,9 @@ const CSS = `
     background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius);
     box-shadow: var(--shadow-lg); min-width: 190px; overflow: hidden;
   }
+  .dropdown-up .dropdown-menu {
+    top: auto; bottom: calc(100% + 6px);
+  }
   .dropdown-section { padding: 5px 0; }
   .dropdown-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); padding: 5px 14px 2px; }
   .dropdown-item { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 14px; font-size: 13px; color: var(--text2); background: none; border: none; cursor: pointer; text-align: left; font-family: var(--font); transition: all .1s; }
@@ -410,754 +413,754 @@ const CSS = `
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function Toast({ message, type, onDone }) {
-    useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, []);
-    return <div className={`toast ${type}`}>{message}</div>;
+  useEffect(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, []);
+  return <div className={`toast ${type}`}>{message}</div>;
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }) {
-    return (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <div className="modal">
-                <div className="modal-title">{title}</div>
-                {children}
-            </div>
-        </div>
-    );
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-title">{title}</div>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 // ─── CSV Menu ─────────────────────────────────────────────────────────────────
-function CSVMenu({ deck, onImport, toast, label = "↕ CSV" }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef();
-    useEffect(() => {
-        const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-        document.addEventListener("mousedown", h);
-        return () => document.removeEventListener("mousedown", h);
-    }, []);
+function CSVMenu({ deck, onImport, toast, label = "↕ CSV", dropUp = false }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef();
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
 
-    const handleFile = (e) => {
-        const file = e.target.files?.[0]; if (!file) return;
-        e.target.value = "";
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const cards = parseCSV(ev.target.result);
-                onImport(cards);
-                toast(`${cards.length} mot${cards.length !== 1 ? "s" : ""} importé${cards.length !== 1 ? "s" : ""} !`, "success");
-            } catch (err) { toast("Erreur : " + err.message, "error"); }
-        };
-        reader.readAsText(file, "UTF-8");
-        setOpen(false);
+  const handleFile = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const cards = parseCSV(ev.target.result);
+        onImport(cards);
+        toast(`${cards.length} mot${cards.length !== 1 ? "s" : ""} importé${cards.length !== 1 ? "s" : ""} !`, "success");
+      } catch (err) { toast("Erreur : " + err.message, "error"); }
     };
+    reader.readAsText(file, "UTF-8");
+    setOpen(false);
+  };
 
-    return (
-        <div className="dropdown-wrap" ref={ref}>
-            <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}>{label}</button>
-            {open && (
-                <div className="dropdown-menu">
-                    {deck && <>
-                        <div className="dropdown-section">
-                            <div className="dropdown-label">Exporter</div>
-                            <button className="dropdown-item" onClick={() => { exportCSV(deck); setOpen(false); toast("CSV téléchargé !", "success"); }}>
-                                📊 Télécharger en CSV
-                            </button>
-                        </div>
-                        <div className="dropdown-divider" />
-                    </>}
-                    <div className="dropdown-section">
-                        <div className="dropdown-label">Importer</div>
-                        <label className="import-label">
-                            📂 Depuis un fichier CSV
-                            <input type="file" accept=".csv,text/csv" onChange={handleFile} />
-                        </label>
-                    </div>
-                </div>
-            )}
+  return (
+    <div className={`dropdown-wrap${dropUp ? " dropdown-up" : ""}`} ref={ref}>
+      <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}>{label}</button>
+      {open && (
+        <div className="dropdown-menu">
+          {deck && <>
+            <div className="dropdown-section">
+              <div className="dropdown-label">Exporter</div>
+              <button className="dropdown-item" onClick={() => { exportCSV(deck); setOpen(false); toast("CSV téléchargé !", "success"); }}>
+                📊 Télécharger en CSV
+              </button>
+            </div>
+            <div className="dropdown-divider" />
+          </>}
+          <div className="dropdown-section">
+            <div className="dropdown-label">Importer</div>
+            <label className="import-label">
+              📂 Depuis un fichier CSV
+              <input type="file" accept=".csv,text/csv" onChange={handleFile} />
+            </label>
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 }
 
 // ─── Deck Modal ───────────────────────────────────────────────────────────────
 function DeckModal({ initial, onSave, onClose }) {
-    const [name, setName] = useState(initial?.name || "");
-    const [err, setErr] = useState("");
-    const submit = () => {
-        if (!name.trim()) { setErr("Le nom est requis."); return; }
-        onSave({ name: name.trim() });
-    };
-    return (
-        <Modal title={initial ? "Renommer le tableau" : "Nouveau tableau"} onClose={onClose}>
-            <div className="field">
-                <label>Nom du tableau</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Vocabulaire voyage" onKeyDown={e => e.key === "Enter" && submit()} autoFocus />
-                {err && <div className="error-msg">{err}</div>}
-            </div>
-            <div className="modal-actions">
-                <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
-                <button className="btn btn-primary" onClick={submit}>Enregistrer</button>
-            </div>
-        </Modal>
-    );
+  const [name, setName] = useState(initial?.name || "");
+  const [err, setErr] = useState("");
+  const submit = () => {
+    if (!name.trim()) { setErr("Le nom est requis."); return; }
+    onSave({ name: name.trim() });
+  };
+  return (
+    <Modal title={initial ? "Renommer le tableau" : "Nouveau tableau"} onClose={onClose}>
+      <div className="field">
+        <label>Nom du tableau</label>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Vocabulaire voyage" onKeyDown={e => e.key === "Enter" && submit()} autoFocus />
+        {err && <div className="error-msg">{err}</div>}
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Annuler</button>
+        <button className="btn btn-primary" onClick={submit}>Enregistrer</button>
+      </div>
+    </Modal>
+  );
 }
 
 // ─── Flashcard ────────────────────────────────────────────────────────────────
 function FlashCard({ card }) {
-    const [flipped, setFlipped] = useState(false);
-    useEffect(() => { setFlipped(false); }, [card.id]);
-    return (
-        <div className="flashcard-scene" onClick={() => setFlipped(f => !f)}>
-            <div className={`flashcard-inner ${flipped ? "flipped" : ""}`}>
-                <div className="flashcard-face flashcard-front">
-                    <div className="card-lang">🇹🇷 Turc</div>
-                    <div className="card-word">{card.tr}</div>
-                    <div className="card-hint">cliquer pour retourner</div>
-                </div>
-                <div className="flashcard-face flashcard-back">
-                    <div className="card-lang">🇫🇷 Français</div>
-                    <div className="card-word">{card.fr}</div>
-                    <div className="card-hint">cliquer pour masquer</div>
-                </div>
-            </div>
+  const [flipped, setFlipped] = useState(false);
+  useEffect(() => { setFlipped(false); }, [card.id]);
+  return (
+    <div className="flashcard-scene" onClick={() => setFlipped(f => !f)}>
+      <div className={`flashcard-inner ${flipped ? "flipped" : ""}`}>
+        <div className="flashcard-face flashcard-front">
+          <div className="card-lang">🇹🇷 Turc</div>
+          <div className="card-word">{card.tr}</div>
+          <div className="card-hint">cliquer pour retourner</div>
         </div>
-    );
+        <div className="flashcard-face flashcard-back">
+          <div className="card-lang">🇫🇷 Français</div>
+          <div className="card-word">{card.fr}</div>
+          <div className="card-hint">cliquer pour masquer</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── My Decks Page ────────────────────────────────────────────────────────────
 function MyDecksPage({ decks, onCreateDeck, onEditDeck, onDeleteDeck, onOpenDeck, onMergeCards, toast }) {
-    const [showCreate, setShowCreate] = useState(false);
-    const [editTarget, setEditTarget] = useState(null);
-    const [pendingImport, setPendingImport] = useState(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [pendingImport, setPendingImport] = useState(null);
 
-    return (
+  return (
+    <div>
+      <div className="section-header">
         <div>
-            <div className="section-header">
-                <div>
-                    <div className="page-title">Mes tableaux</div>
-                    <div className="page-sub">{decks.length} tableau{decks.length !== 1 ? "x" : ""}</div>
-                </div>
-                <div className="flex-row">
-                    <CSVMenu deck={null} onImport={cards => setPendingImport(cards)} toast={toast} label="↑ Importer CSV" />
-                    <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Nouveau</button>
-                </div>
-            </div>
-
-            {decks.length === 0 ? (
-                <div className="empty-state">
-                    <div className="empty-icon">📚</div>
-                    <div className="empty-title">Aucun tableau</div>
-                    <div>Créez votre premier tableau ou importez un fichier CSV</div>
-                </div>
-            ) : (
-                <div className="deck-grid">
-                    {decks.map(deck => (
-                        <div key={deck.id} className="deck-card" onClick={() => onOpenDeck(deck)}>
-                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
-                                <div className="deck-name">{deck.name}</div>
-                                <div className="deck-badge" style={{ position: "static", flexShrink: 0 }}>{deck.cards.length} mots</div>
-                            </div>
-                            <div className="deck-meta">{new Date(deck.createdAt).toLocaleDateString("fr-FR")}</div>
-                            <div className="deck-actions" onClick={e => e.stopPropagation()}>
-                                <CSVMenu deck={deck} onImport={cards => onMergeCards(deck.id, cards)} toast={toast} label="↕" />
-                                <button className="btn btn-ghost btn-sm" onClick={() => setEditTarget(deck)}>✎</button>
-                                <button className="btn btn-danger btn-sm" onClick={() => onDeleteDeck(deck.id)}>✕</button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {showCreate && (
-                <DeckModal
-                    onSave={data => { onCreateDeck(data); setShowCreate(false); toast("Tableau créé !", "success"); }}
-                    onClose={() => setShowCreate(false)}
-                />
-            )}
-            {editTarget && (
-                <DeckModal
-                    initial={editTarget}
-                    onSave={data => { onEditDeck(editTarget.id, data); setEditTarget(null); toast("Renommé !", "success"); }}
-                    onClose={() => setEditTarget(null)}
-                />
-            )}
-            {pendingImport && (
-                <DeckModal
-                    initial={{ name: "Tableau importé" }}
-                    onSave={data => { onCreateDeck(data, pendingImport); setPendingImport(null); toast(`${pendingImport.length} mots importés !`, "success"); }}
-                    onClose={() => setPendingImport(null)}
-                />
-            )}
+          <div className="page-title">Mes tableaux</div>
+          <div className="page-sub">{decks.length} tableau{decks.length !== 1 ? "x" : ""}</div>
         </div>
-    );
+        <div className="flex-row">
+          <CSVMenu deck={null} onImport={cards => setPendingImport(cards)} toast={toast} label="↑ Importer CSV" />
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)}>+ Nouveau</button>
+        </div>
+      </div>
+
+      {decks.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📚</div>
+          <div className="empty-title">Aucun tableau</div>
+          <div>Créez votre premier tableau ou importez un fichier CSV</div>
+        </div>
+      ) : (
+        <div className="deck-grid">
+          {decks.map(deck => (
+            <div key={deck.id} className="deck-card" onClick={() => onOpenDeck(deck)}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 5 }}>
+                <div className="deck-name">{deck.name}</div>
+                <div className="deck-badge" style={{ position: "static", flexShrink: 0 }}>{deck.cards.length} mots</div>
+              </div>
+              <div className="deck-meta">{new Date(deck.createdAt).toLocaleDateString("fr-FR")}</div>
+              <div className="deck-actions" onClick={e => e.stopPropagation()}>
+                <CSVMenu deck={deck} onImport={cards => onMergeCards(deck.id, cards)} toast={toast} label="↕" dropUp />
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditTarget(deck)}>✎</button>
+                <button className="btn btn-danger btn-sm" onClick={() => onDeleteDeck(deck.id)}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showCreate && (
+        <DeckModal
+          onSave={data => { onCreateDeck(data); setShowCreate(false); toast("Tableau créé !", "success"); }}
+          onClose={() => setShowCreate(false)}
+        />
+      )}
+      {editTarget && (
+        <DeckModal
+          initial={editTarget}
+          onSave={data => { onEditDeck(editTarget.id, data); setEditTarget(null); toast("Renommé !", "success"); }}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+      {pendingImport && (
+        <DeckModal
+          initial={{ name: "Tableau importé" }}
+          onSave={data => { onCreateDeck(data, pendingImport); setPendingImport(null); toast(`${pendingImport.length} mots importés !`, "success"); }}
+          onClose={() => setPendingImport(null)}
+        />
+      )}
+    </div>
+  );
 }
 
 // ─── Editable row ────────────────────────────────────────────────────────────
 function EditableRow({ card, onSave, onRemove }) {
-    const [editing, setEditing] = useState(false);
-    const [eFr, setEFr] = useState(card.fr);
-    const [eTr, setETr] = useState(card.tr);
-    const trRef = useRef();
+  const [editing, setEditing] = useState(false);
+  const [eFr, setEFr] = useState(card.fr);
+  const [eTr, setETr] = useState(card.tr);
+  const trRef = useRef();
 
-    const startEdit = () => { setEFr(card.fr); setETr(card.tr); setEditing(true); };
-    const cancel = () => setEditing(false);
-    const save = () => {
-        if (!eFr.trim() || !eTr.trim()) return;
-        onSave({ ...card, fr: eFr.trim(), tr: eTr.trim() });
-        setEditing(false);
-    };
+  const startEdit = () => { setEFr(card.fr); setETr(card.tr); setEditing(true); };
+  const cancel = () => setEditing(false);
+  const save = () => {
+    if (!eFr.trim() || !eTr.trim()) return;
+    onSave({ ...card, fr: eFr.trim(), tr: eTr.trim() });
+    setEditing(false);
+  };
 
-    if (editing) return (
-        <tr className="editing-row">
-            <td><input value={eFr} onChange={e => setEFr(e.target.value)} onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} autoFocus /></td>
-            <td><input ref={trRef} value={eTr} onChange={e => setETr(e.target.value)} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }} /></td>
-            <td style={{ whiteSpace: "nowrap" }}>
-                <button className="btn btn-primary btn-sm" onClick={save}>✓</button>
-                <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={cancel}>✕</button>
-            </td>
-        </tr>
-    );
+  if (editing) return (
+    <tr className="editing-row">
+      <td><input value={eFr} onChange={e => setEFr(e.target.value)} onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} autoFocus /></td>
+      <td><input ref={trRef} value={eTr} onChange={e => setETr(e.target.value)} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") cancel(); }} /></td>
+      <td style={{ whiteSpace: "nowrap" }}>
+        <button className="btn btn-primary btn-sm" onClick={save}>✓</button>
+        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 4 }} onClick={cancel}>✕</button>
+      </td>
+    </tr>
+  );
 
-    return (
-        <tr className="word-row" onDoubleClick={startEdit} title="Double-cliquer pour modifier">
-            <td>{card.fr}</td>
-            <td>{card.tr}</td>
-            <td style={{ whiteSpace: "nowrap" }}>
-                <button className="btn btn-ghost btn-sm" onClick={startEdit} title="Modifier">✎</button>
-                <button className="btn btn-danger btn-sm" style={{ marginLeft: 4 }} onClick={() => onRemove(card.id)}>✕</button>
-            </td>
-        </tr>
-    );
+  return (
+    <tr className="word-row" onDoubleClick={startEdit} title="Double-cliquer pour modifier">
+      <td>{card.fr}</td>
+      <td>{card.tr}</td>
+      <td style={{ whiteSpace: "nowrap" }}>
+        <button className="btn btn-ghost btn-sm" onClick={startEdit} title="Modifier">✎</button>
+        <button className="btn btn-danger btn-sm" style={{ marginLeft: 4 }} onClick={() => onRemove(card.id)}>✕</button>
+      </td>
+    </tr>
+  );
 }
 
 // ─── Deck Detail ──────────────────────────────────────────────────────────────
 function DeckDetail({ deck, onUpdateCards, onBack, toast }) {
-    const [fr, setFr] = useState("");
-    const [tr, setTr] = useState("");
-    const [err, setErr] = useState("");
-    const [search, setSearch] = useState("");
-    const trRef = useRef();
+  const [fr, setFr] = useState("");
+  const [tr, setTr] = useState("");
+  const [err, setErr] = useState("");
+  const [search, setSearch] = useState("");
+  const trRef = useRef();
 
-    const add = () => {
-        if (!fr.trim() || !tr.trim()) { setErr("Les deux champs sont requis."); return; }
-        onUpdateCards([...deck.cards, { id: uid(), fr: fr.trim(), tr: tr.trim() }]);
-        setFr(""); setTr(""); setErr("");
-    };
-    const remove = (id) => onUpdateCards(deck.cards.filter(c => c.id !== id));
-    const saveCard = (updated) => onUpdateCards(deck.cards.map(c => c.id === updated.id ? updated : c));
+  const add = () => {
+    if (!fr.trim() || !tr.trim()) { setErr("Les deux champs sont requis."); return; }
+    onUpdateCards([...deck.cards, { id: uid(), fr: fr.trim(), tr: tr.trim() }]);
+    setFr(""); setTr(""); setErr("");
+  };
+  const remove = (id) => onUpdateCards(deck.cards.filter(c => c.id !== id));
+  const saveCard = (updated) => onUpdateCards(deck.cards.map(c => c.id === updated.id ? updated : c));
 
-    const filtered = search.trim()
-        ? deck.cards.filter(c =>
-            c.fr.toLowerCase().includes(search.toLowerCase()) ||
-            c.tr.toLowerCase().includes(search.toLowerCase()))
-        : deck.cards;
+  const filtered = search.trim()
+    ? deck.cards.filter(c =>
+        c.fr.toLowerCase().includes(search.toLowerCase()) ||
+        c.tr.toLowerCase().includes(search.toLowerCase()))
+    : deck.cards;
 
-    return (
+  return (
+    <div>
+      <div className="section-header">
         <div>
-            <div className="section-header">
-                <div>
-                    <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 10 }}>← Retour</button>
-                    <div className="page-title">{deck.name}</div>
-                    <div className="page-sub">{deck.cards.length} mot{deck.cards.length !== 1 ? "s" : ""}</div>
-                </div>
-                <CSVMenu
-                    deck={deck}
-                    onImport={cards => {
-                        const merged = [...deck.cards, ...cards.filter(nc => !deck.cards.find(ec => ec.fr === nc.fr && ec.tr === nc.tr))];
-                        onUpdateCards(merged);
-                    }}
-                    toast={toast}
-                />
-            </div>
-
-
-
-            <div className="card">
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>
-                        Liste des mots
-                        {search && filtered.length !== deck.cards.length && (
-                            <span style={{ color: "var(--text3)", fontWeight: 400, fontSize: 12, marginLeft: 8 }}>{filtered.length} résultat{filtered.length !== 1 ? "s" : ""}</span>
-                        )}
-                    </div>
-                    {deck.cards.length > 4 && (
-                        <input
-                            value={search} onChange={e => setSearch(e.target.value)}
-                            placeholder="🔍 Rechercher un mot..."
-                            style={{ width: "auto", flex: 1, maxWidth: 240, padding: "7px 12px", fontSize: 13 }}
-                        />
-                    )}
-                </div>
-
-                {filtered.length > 0 && (
-                    <table className="words-table">
-                        <thead>
-                            <tr>
-                                <th>🇫🇷 Français</th>
-                                <th>🇹🇷 Turc</th>
-                                <th style={{ fontSize: 10, color: "var(--text3)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>double-clic pour éditer</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filtered.map(c => (
-                                <EditableRow key={c.id} card={c} onSave={saveCard} onRemove={remove} />
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-                {search && filtered.length === 0 && (
-                    <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text3)", fontSize: 13 }}>Aucun mot ne correspond à "{search}"</div>
-                )}
-
-                <div className="add-row" style={{ marginTop: deck.cards.length > 0 ? 14 : 0 }}>
-                    <input value={fr} onChange={e => setFr(e.target.value)} placeholder="Mot en français"
-                        onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} />
-                    <input ref={trRef} value={tr} onChange={e => setTr(e.target.value)} placeholder="Mot en turc"
-                        onKeyDown={e => e.key === "Enter" && add()} />
-                    <button className="btn btn-primary" onClick={add}>Ajouter</button>
-                </div>
-                {err && <div className="error-msg">{err}</div>}
-            </div>
+          <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 10 }}>← Retour</button>
+          <div className="page-title">{deck.name}</div>
+          <div className="page-sub">{deck.cards.length} mot{deck.cards.length !== 1 ? "s" : ""}</div>
         </div>
-    );
+        <CSVMenu
+          deck={deck}
+          onImport={cards => {
+            const merged = [...deck.cards, ...cards.filter(nc => !deck.cards.find(ec => ec.fr === nc.fr && ec.tr === nc.tr))];
+            onUpdateCards(merged);
+          }}
+          toast={toast}
+        />
+      </div>
+
+
+
+      <div className="card">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 12, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 600, fontSize: 13.5 }}>
+            Liste des mots
+            {search && filtered.length !== deck.cards.length && (
+              <span style={{ color: "var(--text3)", fontWeight: 400, fontSize: 12, marginLeft: 8 }}>{filtered.length} résultat{filtered.length !== 1 ? "s" : ""}</span>
+            )}
+          </div>
+          {deck.cards.length > 4 && (
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="🔍 Rechercher un mot..."
+              style={{ width: "auto", flex: 1, maxWidth: 240, padding: "7px 12px", fontSize: 13 }}
+            />
+          )}
+        </div>
+
+        {filtered.length > 0 && (
+          <table className="words-table">
+            <thead>
+              <tr>
+                <th>🇫🇷 Français</th>
+                <th>🇹🇷 Turc</th>
+                <th style={{ fontSize: 10, color: "var(--text3)", fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>double-clic pour éditer</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <EditableRow key={c.id} card={c} onSave={saveCard} onRemove={remove} />
+              ))}
+            </tbody>
+          </table>
+        )}
+        {search && filtered.length === 0 && (
+          <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text3)", fontSize: 13 }}>Aucun mot ne correspond à "{search}"</div>
+        )}
+
+        <div className="add-row" style={{ marginTop: deck.cards.length > 0 ? 14 : 0 }}>
+          <input value={fr} onChange={e => setFr(e.target.value)} placeholder="Mot en français"
+            onKeyDown={e => e.key === "Tab" && (e.preventDefault(), trRef.current?.focus())} />
+          <input ref={trRef} value={tr} onChange={e => setTr(e.target.value)} placeholder="Mot en turc"
+            onKeyDown={e => e.key === "Enter" && add()} />
+          <button className="btn btn-primary" onClick={add}>Ajouter</button>
+        </div>
+        {err && <div className="error-msg">{err}</div>}
+      </div>
+    </div>
+  );
 }
 
 // ─── Training Page ────────────────────────────────────────────────────────────
 function TrainingPage({ decks }) {
-    const [selId, setSelId] = useState(decks[0]?.id || "");
-    const [idx, setIdx] = useState(0);
-    const deck = decks.find(d => d.id === selId);
-    const cards = deck?.cards || [];
-    useEffect(() => setIdx(0), [selId]);
+  const [selId, setSelId] = useState(decks[0]?.id || "");
+  const [idx, setIdx] = useState(0);
+  const deck = decks.find(d => d.id === selId);
+  const cards = deck?.cards || [];
+  useEffect(() => setIdx(0), [selId]);
 
-    return (
-        <div>
-            <div className="page-title">Entraînement</div>
-            <div className="page-sub">Révisez vos flashcards</div>
-            <div style={{ marginBottom: 24 }}>
-                <label>Tableau</label>
-                <select value={selId} onChange={e => setSelId(e.target.value)} style={{ maxWidth: 320 }}>
-                    {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
-                </select>
-            </div>
+  return (
+    <div>
+      <div className="page-title">Entraînement</div>
+      <div className="page-sub">Révisez vos flashcards</div>
+      <div style={{ marginBottom: 24 }}>
+        <label>Tableau</label>
+        <select value={selId} onChange={e => setSelId(e.target.value)} style={{ maxWidth: 320 }}>
+          {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+        </select>
+      </div>
 
-            {!deck || cards.length === 0 ? (
-                <div className="empty-state">
-                    <div className="empty-icon">🃏</div>
-                    <div className="empty-title">Aucune carte dans ce tableau</div>
-                </div>
-            ) : (
-                <div className="training-area">
-                    <div className="progress-bar">
-                        <div className="progress-fill" style={{ width: `${((idx + 1) / cards.length) * 100}%` }} />
-                    </div>
-                    <div className="train-counter">{idx + 1} / {cards.length}</div>
-                    <FlashCard key={cards[idx].id} card={cards[idx]} />
-                    <div className="train-nav">
-                        <button className="btn btn-ghost" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>← Précédent</button>
-                        <button className="btn btn-primary" onClick={() => setIdx(i => Math.min(cards.length - 1, i + 1))} disabled={idx === cards.length - 1}>Suivant →</button>
-                    </div>
-                    {idx === cards.length - 1 && (
-                        <div style={{ textAlign: "center", padding: "11px 16px", background: "var(--red-bg)", border: "1px solid rgba(200,16,46,0.2)", borderRadius: "var(--radius)", fontSize: 13 }}>
-                            <span style={{ color: "#f8b0bb" }}>Tebrikler ! Toutes les cartes vues.</span>
-                            <button className="btn btn-danger btn-sm" style={{ marginLeft: 12 }} onClick={() => setIdx(0)}>Recommencer</button>
-                        </div>
-                    )}
-                </div>
-            )}
+      {!deck || cards.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">🃏</div>
+          <div className="empty-title">Aucune carte dans ce tableau</div>
         </div>
-    );
+      ) : (
+        <div className="training-area">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${((idx + 1) / cards.length) * 100}%` }} />
+          </div>
+          <div className="train-counter">{idx + 1} / {cards.length}</div>
+          <FlashCard key={cards[idx].id} card={cards[idx]} />
+          <div className="train-nav">
+            <button className="btn btn-ghost" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>← Précédent</button>
+            <button className="btn btn-primary" onClick={() => setIdx(i => Math.min(cards.length - 1, i + 1))} disabled={idx === cards.length - 1}>Suivant →</button>
+          </div>
+          {idx === cards.length - 1 && (
+            <div style={{ textAlign: "center", padding: "11px 16px", background: "var(--red-bg)", border: "1px solid rgba(200,16,46,0.2)", borderRadius: "var(--radius)", fontSize: 13 }}>
+              <span style={{ color: "#f8b0bb" }}>Tebrikler ! Toutes les cartes vues.</span>
+              <button className="btn btn-danger btn-sm" style={{ marginLeft: 12 }} onClick={() => setIdx(0)}>Recommencer</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Quiz Page ────────────────────────────────────────────────────────────────
 function QuizPage({ decks }) {
-    const [selId, setSelId] = useState(decks[0]?.id || "");
-    const [started, setStarted] = useState(false);
-    const [questions, setQuestions] = useState([]);
-    const [qIdx, setQIdx] = useState(0);
-    const [answer, setAnswer] = useState("");
-    const [checked, setChecked] = useState(false);
-    const [results, setResults] = useState([]);
-    const [finished, setFinished] = useState(false);
-    const inputRef = useRef();
-    const deck = decks.find(d => d.id === selId);
+  const [selId, setSelId] = useState(decks[0]?.id || "");
+  const [started, setStarted] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [qIdx, setQIdx] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [checked, setChecked] = useState(false);
+  const [results, setResults] = useState([]);
+  const [finished, setFinished] = useState(false);
+  const inputRef = useRef();
+  const deck = decks.find(d => d.id === selId);
 
-    const startQuiz = () => {
-        const cards = deck?.cards || [];
-        if (!cards.length) return;
-        const qs = [...cards].sort(() => Math.random() - 0.5).map(c => {
-            const frToTr = Math.random() > 0.5;
-            return { frToTr, question: frToTr ? c.fr : c.tr, answer: frToTr ? c.tr : c.fr };
-        });
-        setQuestions(qs); setQIdx(0); setAnswer(""); setChecked(false); setResults([]); setFinished(false); setStarted(true);
-        setTimeout(() => inputRef.current?.focus(), 80);
-    };
+  const startQuiz = () => {
+    const cards = deck?.cards || [];
+    if (!cards.length) return;
+    const qs = [...cards].sort(() => Math.random() - 0.5).map(c => {
+      const frToTr = Math.random() > 0.5;
+      return { frToTr, question: frToTr ? c.fr : c.tr, answer: frToTr ? c.tr : c.fr };
+    });
+    setQuestions(qs); setQIdx(0); setAnswer(""); setChecked(false); setResults([]); setFinished(false); setStarted(true);
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
 
-    const check = () => {
-        if (!answer.trim()) return;
-        setResults(r => [...r, normalize(answer) === normalize(questions[qIdx].answer)]);
-        setChecked(true);
-    };
+  const check = () => {
+    if (!answer.trim()) return;
+    setResults(r => [...r, normalize(answer) === normalize(questions[qIdx].answer)]);
+    setChecked(true);
+  };
 
-    const next = () => {
-        if (qIdx + 1 >= questions.length) { setFinished(true); return; }
-        setQIdx(i => i + 1); setAnswer(""); setChecked(false);
-        setTimeout(() => inputRef.current?.focus(), 80);
-    };
+  const next = () => {
+    if (qIdx + 1 >= questions.length) { setFinished(true); return; }
+    setQIdx(i => i + 1); setAnswer(""); setChecked(false);
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
 
-    if (!started) return (
-        <div>
-            <div className="page-title">Quiz</div>
-            <div className="page-sub">Testez vos connaissances</div>
-            <div className="card" style={{ maxWidth: 400 }}>
-                <div className="field">
-                    <label>Tableau</label>
-                    <select value={selId} onChange={e => setSelId(e.target.value)}>
-                        {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
-                    </select>
-                </div>
-                <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>
-                    Direction aléatoire FR→TR ou TR→FR. Accents et casse ignorés.
-                </div>
-                <button className="btn btn-primary" onClick={startQuiz} disabled={!deck || !deck.cards.length}>
-                    Başla — Commencer
-                </button>
-            </div>
+  if (!started) return (
+    <div>
+      <div className="page-title">Quiz</div>
+      <div className="page-sub">Testez vos connaissances</div>
+      <div className="card" style={{ maxWidth: 400 }}>
+        <div className="field">
+          <label>Tableau</label>
+          <select value={selId} onChange={e => setSelId(e.target.value)}>
+            {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+          </select>
         </div>
-    );
+        <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>
+          Direction aléatoire FR→TR ou TR→FR. Accents et casse ignorés.
+        </div>
+        <button className="btn btn-primary" onClick={startQuiz} disabled={!deck || !deck.cards.length}>
+          Başla — Commencer
+        </button>
+      </div>
+    </div>
+  );
 
-    if (finished) {
-        const score = results.filter(Boolean).length;
-        return (
-            <div>
-                <div className="page-title">Résultats</div>
-                <div className="quiz-card">
-                    <div className="score-big">{score}/{questions.length}</div>
-                    <div className="text-muted mt-2" style={{ marginBottom: 18, fontSize: 14 }}>
-                        {score === questions.length ? "Mükemmel ! Parfait ! 🌟" : score >= questions.length * 0.7 ? "Çok iyi ! Très bien 👍" : "Devam et ! Continue 💪"}
-                    </div>
-                    <div className="quiz-progress" style={{ marginBottom: 20 }}>
-                        {results.map((r, i) => <div key={i} className={`quiz-dot ${r ? "done-correct" : "done-wrong"}`} />)}
-                    </div>
-                    <div className="flex-row" style={{ justifyContent: "center" }}>
-                        <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
-                        <button className="btn btn-primary" onClick={startQuiz}>Recommencer</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    const q = questions[qIdx];
-    const isCorrect = checked ? normalize(answer) === normalize(q.answer) : null;
-
+  if (finished) {
+    const score = results.filter(Boolean).length;
     return (
-        <div>
-            <div className="page-title">Quiz</div>
-            <div className="quiz-card">
-                <div className="quiz-progress">
-                    {questions.map((_, i) => (
-                        <div key={i} className={`quiz-dot ${i < qIdx ? (results[i] ? "done-correct" : "done-wrong") : i === qIdx ? "current" : ""}`} />
-                    ))}
-                </div>
-                <div className="quiz-lang-badge">{q.frToTr ? "Français → Turc" : "Turc → Français"}</div>
-                <div className="quiz-word">{q.question}</div>
-                {!checked ? (
-                    <>
-                        <input ref={inputRef} className="quiz-input" value={answer} onChange={e => setAnswer(e.target.value)}
-                            onKeyDown={e => e.key === "Enter" && check()} placeholder="Votre réponse..." />
-                        <button className="btn btn-primary w-full" onClick={check} disabled={!answer.trim()}>Vérifier</button>
-                    </>
-                ) : (
-                    <>
-                        <div className={`quiz-result ${isCorrect ? "correct" : "wrong"}`}>
-                            {isCorrect ? "✓ Doğru !" : "✗ Yanlış"}
-                        </div>
-                        {!isCorrect && (
-                            <div className="text-muted mt-2" style={{ marginBottom: 12, fontSize: 13.5 }}>
-                                Réponse correcte : <strong style={{ color: "var(--text)" }}>{q.answer}</strong>
-                            </div>
-                        )}
-                        <button className="btn btn-primary w-full" onClick={next}>
-                            {qIdx + 1 < questions.length ? "Suivant →" : "Voir les résultats"}
-                        </button>
-                    </>
-                )}
-            </div>
+      <div>
+        <div className="page-title">Résultats</div>
+        <div className="quiz-card">
+          <div className="score-big">{score}/{questions.length}</div>
+          <div className="text-muted mt-2" style={{ marginBottom: 18, fontSize: 14 }}>
+            {score === questions.length ? "Mükemmel ! Parfait ! 🌟" : score >= questions.length * 0.7 ? "Çok iyi ! Très bien 👍" : "Devam et ! Continue 💪"}
+          </div>
+          <div className="quiz-progress" style={{ marginBottom: 20 }}>
+            {results.map((r, i) => <div key={i} className={`quiz-dot ${r ? "done-correct" : "done-wrong"}`} />)}
+          </div>
+          <div className="flex-row" style={{ justifyContent: "center" }}>
+            <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
+            <button className="btn btn-primary" onClick={startQuiz}>Recommencer</button>
+          </div>
         </div>
+      </div>
     );
+  }
+
+  const q = questions[qIdx];
+  const isCorrect = checked ? normalize(answer) === normalize(q.answer) : null;
+
+  return (
+    <div>
+      <div className="page-title">Quiz</div>
+      <div className="quiz-card">
+        <div className="quiz-progress">
+          {questions.map((_, i) => (
+            <div key={i} className={`quiz-dot ${i < qIdx ? (results[i] ? "done-correct" : "done-wrong") : i === qIdx ? "current" : ""}`} />
+          ))}
+        </div>
+        <div className="quiz-lang-badge">{q.frToTr ? "Français → Turc" : "Turc → Français"}</div>
+        <div className="quiz-word">{q.question}</div>
+        {!checked ? (
+          <>
+            <input ref={inputRef} className="quiz-input" value={answer} onChange={e => setAnswer(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && check()} placeholder="Votre réponse..." />
+            <button className="btn btn-primary w-full" onClick={check} disabled={!answer.trim()}>Vérifier</button>
+          </>
+        ) : (
+          <>
+            <div className={`quiz-result ${isCorrect ? "correct" : "wrong"}`}>
+              {isCorrect ? "✓ Doğru !" : "✗ Yanlış"}
+            </div>
+            {!isCorrect && (
+              <div className="text-muted mt-2" style={{ marginBottom: 12, fontSize: 13.5 }}>
+                Réponse correcte : <strong style={{ color: "var(--text)" }}>{q.answer}</strong>
+              </div>
+            )}
+            <button className="btn btn-primary w-full" onClick={next}>
+              {qIdx + 1 < questions.length ? "Suivant →" : "Voir les résultats"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── QCM Page ─────────────────────────────────────────────────────────────────
 function QCMPage({ decks }) {
-    const [selId, setSelId] = useState(decks[0]?.id || "");
-    const [showModal, setShowModal] = useState(false);
-    const [wordCount, setWordCount] = useState(10);
-    const [started, setStarted] = useState(false);
-    const [questions, setQuestions] = useState([]);
-    const [qIdx, setQIdx] = useState(0);
-    const [chosen, setChosen] = useState(null);
-    const [results, setResults] = useState([]);
-    const [finished, setFinished] = useState(false);
-    const [streak, setStreak] = useState(0);
-    const deck = decks.find(d => d.id === selId);
-    const maxWords = deck?.cards.length || 0;
+  const [selId, setSelId] = useState(decks[0]?.id || "");
+  const [showModal, setShowModal] = useState(false);
+  const [wordCount, setWordCount] = useState(10);
+  const [started, setStarted] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [qIdx, setQIdx] = useState(0);
+  const [chosen, setChosen] = useState(null);
+  const [results, setResults] = useState([]);
+  const [finished, setFinished] = useState(false);
+  const [streak, setStreak] = useState(0);
+  const deck = decks.find(d => d.id === selId);
+  const maxWords = deck?.cards.length || 0;
 
-    const buildOptions = (cards, correct) => {
-        const pool = cards.filter(c => c !== correct);
-        const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
-        return [...shuffled, correct].sort(() => Math.random() - 0.5);
-    };
+  const buildOptions = (cards, correct) => {
+    const pool = cards.filter(c => c !== correct);
+    const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 3);
+    return [...shuffled, correct].sort(() => Math.random() - 0.5);
+  };
 
-    const startQCM = (count) => {
-        const allCards = deck?.cards || [];
-        if (allCards.length < 4) return;
-        const picked = [...allCards].sort(() => Math.random() - 0.5).slice(0, count);
-        const qs = picked.map(c => {
-            const frToTr = Math.random() > 0.5;
-            const opts = buildOptions(allCards, c);
-            return {
-                frToTr,
-                question: frToTr ? c.fr : c.tr,
-                correctAnswer: frToTr ? c.tr : c.fr,
-                options: opts.map(o => frToTr ? o.tr : o.fr),
-            };
-        });
-        setQuestions(qs); setQIdx(0); setChosen(null); setResults([]);
-        setFinished(false); setStreak(0); setStarted(true); setShowModal(false);
-    };
+  const startQCM = (count) => {
+    const allCards = deck?.cards || [];
+    if (allCards.length < 4) return;
+    const picked = [...allCards].sort(() => Math.random() - 0.5).slice(0, count);
+    const qs = picked.map(c => {
+      const frToTr = Math.random() > 0.5;
+      const opts = buildOptions(allCards, c);
+      return {
+        frToTr,
+        question: frToTr ? c.fr : c.tr,
+        correctAnswer: frToTr ? c.tr : c.fr,
+        options: opts.map(o => frToTr ? o.tr : o.fr),
+      };
+    });
+    setQuestions(qs); setQIdx(0); setChosen(null); setResults([]);
+    setFinished(false); setStreak(0); setStarted(true); setShowModal(false);
+  };
 
-    const pick = (optIdx) => {
-        if (chosen !== null) return;
-        const correct = questions[qIdx].options[optIdx] === questions[qIdx].correctAnswer;
-        setChosen(optIdx);
-        setResults(r => [...r, correct]);
-        setStreak(s => correct ? s + 1 : 0);
-    };
+  const pick = (optIdx) => {
+    if (chosen !== null) return;
+    const correct = questions[qIdx].options[optIdx] === questions[qIdx].correctAnswer;
+    setChosen(optIdx);
+    setResults(r => [...r, correct]);
+    setStreak(s => correct ? s + 1 : 0);
+  };
 
-    const next = () => {
-        if (qIdx + 1 >= questions.length) { setFinished(true); return; }
-        setQIdx(i => i + 1); setChosen(null);
-    };
+  const next = () => {
+    if (qIdx + 1 >= questions.length) { setFinished(true); return; }
+    setQIdx(i => i + 1); setChosen(null);
+  };
 
-    const q = started && !finished ? questions[qIdx] : null;
+  const q = started && !finished ? questions[qIdx] : null;
 
-    // ── Modal de configuration ──
-    const ConfigModal = () => (
-        <Modal title="Configurer le QCM" onClose={() => setShowModal(false)}>
-            <div className="field">
-                <label>Tableau</label>
-                <select value={selId} onChange={e => { setSelId(e.target.value); setWordCount(Math.min(wordCount, decks.find(d => d.id === e.target.value)?.cards.length || 10)); }}>
-                    {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
-                </select>
-            </div>
-            <div className="field">
-                <label>Nombre de mots ({wordCount} / {maxWords})</label>
-                <input
-                    type="range" min={4} max={maxWords} value={Math.min(wordCount, maxWords)}
-                    onChange={e => setWordCount(Number(e.target.value))}
-                    style={{ padding: 0, background: "none", border: "none", accentColor: "var(--red)", cursor: "pointer" }}
-                />
-                {/* Presets rapides */}
-                <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                    {[10, 20, 30, 50].filter(n => n <= maxWords).map(n => (
-                        <button key={n} className={`btn btn-sm ${wordCount === n ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(n)}>{n}</button>
-                    ))}
-                    <button className={`btn btn-sm ${wordCount === maxWords ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(maxWords)}>Tout ({maxWords})</button>
-                </div>
-            </div>
-            {deck && deck.cards.length < 4 && (
-                <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau.</div>
-            )}
-            <div className="text-sm text-muted mt-2" style={{ marginBottom: 4 }}>Direction aléatoire FR→TR ou TR→FR.</div>
-            <div className="modal-actions">
-                <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Annuler</button>
-                <button className="btn btn-primary" onClick={() => startQCM(Math.min(wordCount, maxWords))} disabled={!deck || maxWords < 4}>
-                    Lancer — {Math.min(wordCount, maxWords)} mots
-                </button>
-            </div>
-        </Modal>
-    );
-
-    if (!started) return (
-        <div>
-            <div className="page-title">QCM</div>
-            <div className="page-sub">Choisissez la bonne traduction parmi 4 options</div>
-            <div className="card" style={{ maxWidth: 400 }}>
-                <div className="field">
-                    <label>Tableau</label>
-                    <select value={selId} onChange={e => setSelId(e.target.value)}>
-                        {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
-                    </select>
-                </div>
-                {deck && maxWords < 4 && (
-                    <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau pour jouer.</div>
-                )}
-                <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>Direction aléatoire FR→TR ou TR→FR.</div>
-                <button className="btn btn-primary" onClick={() => { setWordCount(Math.min(20, maxWords)); setShowModal(true); }} disabled={!deck || maxWords < 4}>
-                    Configurer &amp; Lancer
-                </button>
-            </div>
-            {showModal && <ConfigModal />}
+  // ── Modal de configuration ──
+  const ConfigModal = () => (
+    <Modal title="Configurer le QCM" onClose={() => setShowModal(false)}>
+      <div className="field">
+        <label>Tableau</label>
+        <select value={selId} onChange={e => { setSelId(e.target.value); setWordCount(Math.min(wordCount, decks.find(d => d.id === e.target.value)?.cards.length || 10)); }}>
+          {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label>Nombre de mots ({wordCount} / {maxWords})</label>
+        <input
+          type="range" min={4} max={maxWords} value={Math.min(wordCount, maxWords)}
+          onChange={e => setWordCount(Number(e.target.value))}
+          style={{ padding: 0, background: "none", border: "none", accentColor: "var(--red)", cursor: "pointer" }}
+        />
+        {/* Presets rapides */}
+        <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {[10, 20, 30, 50].filter(n => n <= maxWords).map(n => (
+            <button key={n} className={`btn btn-sm ${wordCount === n ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(n)}>{n}</button>
+          ))}
+          <button className={`btn btn-sm ${wordCount === maxWords ? "btn-primary" : "btn-ghost"}`} onClick={() => setWordCount(maxWords)}>Tout ({maxWords})</button>
         </div>
-    );
+      </div>
+      {deck && deck.cards.length < 4 && (
+        <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau.</div>
+      )}
+      <div className="text-sm text-muted mt-2" style={{ marginBottom: 4 }}>Direction aléatoire FR→TR ou TR→FR.</div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={() => setShowModal(false)}>Annuler</button>
+        <button className="btn btn-primary" onClick={() => startQCM(Math.min(wordCount, maxWords))} disabled={!deck || maxWords < 4}>
+          Lancer — {Math.min(wordCount, maxWords)} mots
+        </button>
+      </div>
+    </Modal>
+  );
 
-    if (finished) {
-        const score = results.filter(Boolean).length;
-        const best = results.reduce((acc, r) => { if (r) acc.cur++; else acc.cur = 0; acc.best = Math.max(acc.best, acc.cur); return acc; }, { cur: 0, best: 0 }).best;
-        return (
-            <div>
-                <div className="page-title">Résultats QCM</div>
-                <div className="qcm-card" style={{ textAlign: "center" }}>
-                    <div className="score-big">{score}/{questions.length}</div>
-                    <div className="text-muted mt-2" style={{ marginBottom: 10, fontSize: 14 }}>
-                        {score === questions.length ? "Mükemmel ! Parfait ! 🌟" : score >= questions.length * 0.7 ? "Çok iyi ! Très bien 👍" : "Devam et ! Continue 💪"}
-                    </div>
-                    {best >= 3 && <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 18 }}>🔥 Meilleure série : {best} bonnes réponses d'affilée</div>}
-                    <div className="quiz-progress" style={{ marginBottom: 22 }}>
-                        {results.map((r, i) => <div key={i} className={`quiz-dot ${r ? "done-correct" : "done-wrong"}`} />)}
-                    </div>
-                    <div className="flex-row" style={{ justifyContent: "center" }}>
-                        <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
-                        <button className="btn btn-primary" onClick={() => startQCM(questions.length)}>Recommencer</button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
+  if (!started) return (
+    <div>
+      <div className="page-title">QCM</div>
+      <div className="page-sub">Choisissez la bonne traduction parmi 4 options</div>
+      <div className="card" style={{ maxWidth: 400 }}>
+        <div className="field">
+          <label>Tableau</label>
+          <select value={selId} onChange={e => setSelId(e.target.value)}>
+            {decks.map(d => <option key={d.id} value={d.id}>{d.name} ({d.cards.length} mots)</option>)}
+          </select>
+        </div>
+        {deck && maxWords < 4 && (
+          <div className="error-msg" style={{ marginBottom: 12 }}>Il faut au moins 4 mots dans le tableau pour jouer.</div>
+        )}
+        <div className="text-sm text-muted mt-2" style={{ marginBottom: 16 }}>Direction aléatoire FR→TR ou TR→FR.</div>
+        <button className="btn btn-primary" onClick={() => { setWordCount(Math.min(20, maxWords)); setShowModal(true); }} disabled={!deck || maxWords < 4}>
+          Configurer &amp; Lancer
+        </button>
+      </div>
+      {showModal && <ConfigModal />}
+    </div>
+  );
 
-    const isAnswered = chosen !== null;
-    const correctIdx = q.options.indexOf(q.correctAnswer);
-
-    const optClass = (i) => {
-        if (!isAnswered) return "";
-        if (i === chosen && i === correctIdx) return "correct";
-        if (i === chosen && i !== correctIdx) return "wrong";
-        if (i === correctIdx) return "reveal";
-        return "";
-    };
-
+  if (finished) {
+    const score = results.filter(Boolean).length;
+    const best = results.reduce((acc, r) => { if (r) acc.cur++; else acc.cur = 0; acc.best = Math.max(acc.best, acc.cur); return acc; }, { cur: 0, best: 0 }).best;
     return (
-        <div>
-            <div className="page-title">QCM</div>
-            <div className="qcm-card">
-                {/* Progress + streak */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <div className="quiz-progress" style={{ marginBottom: 0 }}>
-                        {questions.map((_, i) => <div key={i} className={`quiz-dot ${i < qIdx ? (results[i] ? "done-correct" : "done-wrong") : i === qIdx ? "current" : ""}`} />)}
-                    </div>
-                    {streak >= 2 && (
-                        <div className="qcm-streak"><span className="qcm-streak-fire">🔥</span>{streak}</div>
-                    )}
-                </div>
-
-                <div className="quiz-lang-badge">{q.frToTr ? "Français → Turc" : "Turc → Français"}</div>
-                <div className="qcm-word">{q.question}</div>
-
-                <div className="qcm-options">
-                    {q.options.map((opt, i) => (
-                        <button
-                            key={i}
-                            className={`qcm-option ${optClass(i)}`}
-                            onClick={() => pick(i)}
-                            disabled={isAnswered}
-                        >
-                            {opt}
-                        </button>
-                    ))}
-                </div>
-
-                {isAnswered && (
-                    <button className="btn btn-primary w-full" style={{ marginTop: 20 }} onClick={next}>
-                        {qIdx + 1 < questions.length ? "Question suivante →" : "Voir les résultats"}
-                    </button>
-                )}
-            </div>
+      <div>
+        <div className="page-title">Résultats QCM</div>
+        <div className="qcm-card" style={{ textAlign: "center" }}>
+          <div className="score-big">{score}/{questions.length}</div>
+          <div className="text-muted mt-2" style={{ marginBottom: 10, fontSize: 14 }}>
+            {score === questions.length ? "Mükemmel ! Parfait ! 🌟" : score >= questions.length * 0.7 ? "Çok iyi ! Très bien 👍" : "Devam et ! Continue 💪"}
+          </div>
+          {best >= 3 && <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 18 }}>🔥 Meilleure série : {best} bonnes réponses d'affilée</div>}
+          <div className="quiz-progress" style={{ marginBottom: 22 }}>
+            {results.map((r, i) => <div key={i} className={`quiz-dot ${r ? "done-correct" : "done-wrong"}`} />)}
+          </div>
+          <div className="flex-row" style={{ justifyContent: "center" }}>
+            <button className="btn btn-ghost" onClick={() => setStarted(false)}>Changer</button>
+            <button className="btn btn-primary" onClick={() => startQCM(questions.length)}>Recommencer</button>
+          </div>
         </div>
+      </div>
     );
+  }
+
+  const isAnswered = chosen !== null;
+  const correctIdx = q.options.indexOf(q.correctAnswer);
+
+  const optClass = (i) => {
+    if (!isAnswered) return "";
+    if (i === chosen && i === correctIdx) return "correct";
+    if (i === chosen && i !== correctIdx) return "wrong";
+    if (i === correctIdx) return "reveal";
+    return "";
+  };
+
+  return (
+    <div>
+      <div className="page-title">QCM</div>
+      <div className="qcm-card">
+        {/* Progress + streak */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div className="quiz-progress" style={{ marginBottom: 0 }}>
+            {questions.map((_, i) => <div key={i} className={`quiz-dot ${i < qIdx ? (results[i] ? "done-correct" : "done-wrong") : i === qIdx ? "current" : ""}`} />)}
+          </div>
+          {streak >= 2 && (
+            <div className="qcm-streak"><span className="qcm-streak-fire">🔥</span>{streak}</div>
+          )}
+        </div>
+
+        <div className="quiz-lang-badge">{q.frToTr ? "Français → Turc" : "Turc → Français"}</div>
+        <div className="qcm-word">{q.question}</div>
+
+        <div className="qcm-options">
+          {q.options.map((opt, i) => (
+            <button
+              key={i}
+              className={`qcm-option ${optClass(i)}`}
+              onClick={() => pick(i)}
+              disabled={isAnswered}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+
+        {isAnswered && (
+          <button className="btn btn-primary w-full" style={{ marginTop: 20 }} onClick={next}>
+            {qIdx + 1 < questions.length ? "Question suivante →" : "Voir les résultats"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-    const [decks, setDecks] = useState(() => load());
-    const [page, setPage] = useState("decks");
-    const [openDeck, setOpenDeck] = useState(null);
-    const [toast, setToast] = useState(null);
+  const [decks, setDecks] = useState(() => load());
+  const [page, setPage] = useState("decks");
+  const [openDeck, setOpenDeck] = useState(null);
+  const [toast, setToast] = useState(null);
 
-    const persist = useCallback((next) => { setDecks(next); save(next); }, []);
-    const showToast = (msg, type = "success") => setToast({ msg, type, id: uid() });
+  const persist = useCallback((next) => { setDecks(next); save(next); }, []);
+  const showToast = (msg, type = "success") => setToast({ msg, type, id: uid() });
 
-    const createDeck = ({ name }, cards = []) => persist([...decks, { id: uid(), name, cards, createdAt: Date.now() }]);
-    const editDeck = (id, { name }) => persist(decks.map(d => d.id === id ? { ...d, name } : d));
-    const deleteDeck = (id) => { persist(decks.filter(d => d.id !== id)); if (openDeck?.id === id) setOpenDeck(null); showToast("Tableau supprimé."); };
+  const createDeck = ({ name }, cards = []) => persist([...decks, { id: uid(), name, cards, createdAt: Date.now() }]);
+  const editDeck   = (id, { name }) => persist(decks.map(d => d.id === id ? { ...d, name } : d));
+  const deleteDeck = (id) => { persist(decks.filter(d => d.id !== id)); if (openDeck?.id === id) setOpenDeck(null); showToast("Tableau supprimé."); };
 
-    const updateCards = (id, cards) => {
-        persist(decks.map(d => d.id === id ? { ...d, cards } : d));
-        setOpenDeck(od => od ? { ...od, cards } : od);
-    };
-    const mergeCards = (id, newCards) => {
-        const deck = decks.find(d => d.id === id); if (!deck) return;
-        const merged = [...deck.cards, ...newCards.filter(nc => !deck.cards.find(ec => ec.fr === nc.fr && ec.tr === nc.tr))];
-        updateCards(id, merged);
-        showToast(`${newCards.length} mots fusionnés !`);
-    };
+  const updateCards = (id, cards) => {
+    persist(decks.map(d => d.id === id ? { ...d, cards } : d));
+    setOpenDeck(od => od ? { ...od, cards } : od);
+  };
+  const mergeCards = (id, newCards) => {
+    const deck = decks.find(d => d.id === id); if (!deck) return;
+    const merged = [...deck.cards, ...newCards.filter(nc => !deck.cards.find(ec => ec.fr === nc.fr && ec.tr === nc.tr))];
+    updateCards(id, merged);
+    showToast(`${newCards.length} mots fusionnés !`);
+  };
 
-    const navItems = [
-        { id: "decks", icon: "🗂", label: "Mes tableaux" },
-        { id: "training", icon: "🃏", label: "Entraînement" },
-        { id: "quiz", icon: "🎯", label: "Quiz" },
-        { id: "qcm", icon: "🔤", label: "QCM" },
-    ];
+  const navItems = [
+    { id: "decks",    icon: "🗂",  label: "Mes tableaux" },
+    { id: "training", icon: "🃏",  label: "Entraînement" },
+    { id: "quiz",     icon: "🎯",  label: "Quiz"         },
+    { id: "qcm",      icon: "🔤",  label: "QCM"          },
+  ];
 
-    const renderPage = () => {
-        if (openDeck) {
-            const deck = decks.find(d => d.id === openDeck.id);
-            if (!deck) { setOpenDeck(null); return null; }
-            return <DeckDetail deck={deck} onUpdateCards={cards => updateCards(deck.id, cards)} onBack={() => setOpenDeck(null)} toast={showToast} />;
-        }
-        switch (page) {
-            case "decks": return <MyDecksPage decks={decks} onCreateDeck={createDeck} onEditDeck={editDeck} onDeleteDeck={deleteDeck} onOpenDeck={setOpenDeck} onMergeCards={mergeCards} toast={showToast} />;
-            case "training": return <TrainingPage decks={decks} />;
-            case "quiz": return <QuizPage decks={decks} />;
-            case "qcm": return <QCMPage decks={decks} />;
-            default: return null;
-        }
-    };
+  const renderPage = () => {
+    if (openDeck) {
+      const deck = decks.find(d => d.id === openDeck.id);
+      if (!deck) { setOpenDeck(null); return null; }
+      return <DeckDetail deck={deck} onUpdateCards={cards => updateCards(deck.id, cards)} onBack={() => setOpenDeck(null)} toast={showToast} />;
+    }
+    switch (page) {
+      case "decks":    return <MyDecksPage decks={decks} onCreateDeck={createDeck} onEditDeck={editDeck} onDeleteDeck={deleteDeck} onOpenDeck={setOpenDeck} onMergeCards={mergeCards} toast={showToast} />;
+      case "training": return <TrainingPage decks={decks} />;
+      case "quiz":     return <QuizPage decks={decks} />;
+      case "qcm":      return <QCMPage decks={decks} />;
+      default:         return null;
+    }
+  };
 
-    return (
-        <>
-            <style>{CSS}</style>
-            <div className="app">
-                <aside className="sidebar">
-                    <div className="sidebar-header">
-                        <div className="logo">LinguaCards</div>
-                        <div className="logo-sub">Français · Türkçe</div>
-                    </div>
-                    <nav className="nav">
-                        {navItems.map(item => (
-                            <button key={item.id}
-                                className={`nav-item ${page === item.id && !openDeck ? "active" : ""}`}
-                                onClick={() => { setPage(item.id); setOpenDeck(null); }}>
-                                <span className="nav-icon">{item.icon}</span>
-                                <span className="nav-label">{item.label}</span>
-                            </button>
-                        ))}
-                    </nav>
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="app">
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <div className="logo">LinguaCards</div>
+            <div className="logo-sub">Français · Türkçe</div>
+          </div>
+          <nav className="nav">
+            {navItems.map(item => (
+              <button key={item.id}
+                className={`nav-item ${page === item.id && !openDeck ? "active" : ""}`}
+                onClick={() => { setPage(item.id); setOpenDeck(null); }}>
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </button>
+            ))}
+          </nav>
 
-                </aside>
-                <main className="main"><div className="main-inner">{renderPage()}</div></main>
-            </div>
-            {/* Mobile bottom nav */}
-            <nav className="mobile-nav">
-                {navItems.map(item => (
-                    <button key={item.id}
-                        className={`mobile-nav-item ${page === item.id && !openDeck ? "active" : ""}`}
-                        onClick={() => { setPage(item.id); setOpenDeck(null); }}>
-                        <span className="mob-icon">{item.icon}</span>
-                        {item.label}
-                    </button>
-                ))}
-            </nav>
-            {toast && <Toast key={toast.id} message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
-        </>
-    );
+        </aside>
+        <main className="main"><div className="main-inner">{renderPage()}</div></main>
+      </div>
+      {/* Mobile bottom nav */}
+      <nav className="mobile-nav">
+        {navItems.map(item => (
+          <button key={item.id}
+            className={`mobile-nav-item ${page === item.id && !openDeck ? "active" : ""}`}
+            onClick={() => { setPage(item.id); setOpenDeck(null); }}>
+            <span className="mob-icon">{item.icon}</span>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+      {toast && <Toast key={toast.id} message={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
+    </>
+  );
 }
