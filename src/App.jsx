@@ -167,11 +167,11 @@ const CSS = `
   .deck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 13px; }
   .deck-card {
     background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
-    padding: 20px; cursor: pointer; transition: all .2s; position: relative; overflow: hidden;
+    padding: 20px; cursor: pointer; transition: all .2s; position: relative;
   }
   .deck-card::before {
-    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-    background: var(--red); opacity: 0; transition: opacity .2s;
+    content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px;
+    background: var(--red); opacity: 0; transition: opacity .2s; border-radius: 0 2px 2px 0;
   }
   .deck-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: var(--shadow); }
   .deck-card:hover::before { opacity: 1; }
@@ -234,12 +234,15 @@ const CSS = `
   /* ── Dropdown ── */
   .dropdown-wrap { position: relative; display: inline-block; }
   .dropdown-menu {
-    position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 200;
     background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--radius);
     box-shadow: var(--shadow-lg); min-width: 190px; overflow: hidden;
   }
   .dropdown-up .dropdown-menu {
     top: auto; bottom: calc(100% + 6px);
+  }
+  .dropdown-left .dropdown-menu {
+    right: auto; left: 0;
   }
   .dropdown-section { padding: 5px 0; }
   .dropdown-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text3); padding: 5px 14px 2px; }
@@ -455,7 +458,7 @@ function CSVMenu({ deck, onImport, toast, label = "↕ CSV", dropUp = false }) {
   };
 
   return (
-    <div className={`dropdown-wrap${dropUp ? " dropdown-up" : ""}`} ref={ref}>
+    <div className={`dropdown-wrap${dropUp ? " dropdown-up" : ""}${dropUp ? " dropdown-left" : ""}`} ref={ref}>
       <button className="btn btn-ghost btn-sm" onClick={() => setOpen(o => !o)}>{label}</button>
       {open && (
         <div className="dropdown-menu">
@@ -561,7 +564,7 @@ function MyDecksPage({ decks, onCreateDeck, onEditDeck, onDeleteDeck, onOpenDeck
               </div>
               <div className="deck-meta">{new Date(deck.createdAt).toLocaleDateString("fr-FR")}</div>
               <div className="deck-actions" onClick={e => e.stopPropagation()}>
-                <CSVMenu deck={deck} onImport={cards => onMergeCards(deck.id, cards)} toast={toast} label="↕" dropUp />
+                <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); exportCSV(deck); toast("CSV téléchargé !", "success"); }}>↓ CSV</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setEditTarget(deck)}>✎</button>
                 <button className="btn btn-danger btn-sm" onClick={() => onDeleteDeck(deck.id)}>✕</button>
               </div>
